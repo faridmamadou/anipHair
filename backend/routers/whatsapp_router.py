@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from services.whatsapp_service import WhatsAppSessionService
 from database import get_db
-from schemas import AppointmentCreate, Appointment, WhatsAppMessageSend, WhatsAppMessage
+from schemas import AppointmentCreate, Appointment, WhatsAppMessageSend, WhatsAppMessage, WhatsAppAudioMessage
 from typing import List
 from datetime import timedelta
 import re
