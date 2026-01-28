@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import Field
-from schemas import WhatsAppMessage
+from schemas import WhatsAppMessage, WhatsAppAudioMessage
 from datetime import datetime
 from typing import Dict
 
@@ -18,13 +18,11 @@ async def receive_message(message: WhatsAppMessage):
 async def receive_audio_message(
     audio_msg: WhatsAppAudioMessage,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
 ):
     # Ignorer les messages envoyés par le bot lui-même
     if audio_msg.fromMe:
         return {"status": "ignored", "reason": "message from bot"}
     
-    service = WhatsAppSessionService(db)
     
     # Définir le chemin de sauvegarde
     output_dir = "audios"

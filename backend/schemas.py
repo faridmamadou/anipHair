@@ -58,14 +58,7 @@ class WhatsAppAudioMessage(BaseModel):
     message_id: str
     audio_url: str  # URL directe du fichier audio
     mime_type: Optional[str] = None
-    filename: Optional[str] = None
-    s3_bucket: Optional[str] = None
-    s3_key: Optional[str] = None
-    from_number: str = Field(..., alias="from")
-    to: Optional[str] = None
     timestamp: int
-    fromMe: bool
-    body: Optional[str] = None
     received_at: str
 
     class Config:
