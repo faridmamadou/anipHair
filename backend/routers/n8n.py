@@ -3,16 +3,52 @@ from pydantic import Field
 from schemas import WhatsAppMessage, WhatsAppAudioMessage
 from datetime import datetime
 from typing import Dict
+from database import get_db
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
 last_messages: Dict[str, Dict] = {}
 
 @router.post("/receive")
-async def receive_message(message: WhatsAppMessage):
-    last_messages[message.chat_id] = message.dict()
-    
-    return {"status": "success", "stored_for": message.chat_id}
+async def receive_message(
+    message: WhatsAppMessage,
+    db: Session = Depends(get_db)
+):
+    whatsapp_service = WhatsAppSessionService(db)
+
+    chat_id = message.chat_id
+    text = (message.text or "").lower().strip()
+
+    # --- ROUTING PAR MOT CLÉ ---
+    if "LAST" in text:
+        response_text = await whatsapp_service.get_last_appointment(chat_id)
+
+    elif "TODAY" in text:
+        response_text = await whatsapp_service.get_today_appointments(chat_id)
+
+    elif "HELP" in text or "AIDE" in text:
+        response_text = (
+            "🤖 Commandes disponibles :\n"
+            "- *LAST*\n"
+            "- *TODAY*\n"
+            "- *HELP*"
+        )
+
+    else:
+        response_text = (
+            "❓ Je n’ai pas compris votre demande.\n"
+            "Tapez *help* pour voir les commandes disponibles."
+        )
+
+    # --- ENVOI WHATSAPP ---
+    await whatsapp_service.send_message(chat_id, response_text)
+
+    return {
+        "status": "success",
+        "chat_id": chat_id,
+        "matched_text": text
+    }
 
 @router.post("/receive-audio")
 async def receive_audio_message(

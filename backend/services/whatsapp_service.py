@@ -184,3 +184,47 @@ class WhatsAppSessionService:
             except Exception as e:
                 logger.exception("Unexpected error downloading audio")
                 return None
+
+    def get_last_appointment(self, chat_id: str):
+        """
+        Retourne le dernier RDV du contact
+        """
+        return (
+            self.db.query(models.Appointment)
+            .filter(models.Appointment.chat_id == chat_id)
+            .order_by(models.Appointment.date_start.desc())
+            .first()
+        )
+
+    def get_today_appointments(self, chat_id: str):
+        """
+        Retourne les RDV du jour
+        """
+        today = date.today()
+
+        return (
+            self.db.query(models.Appointment)
+            .filter(
+                models.Appointment.chat_id == chat_id,
+                func.date(models.Appointment.date_start) == today
+            )
+            .order_by(models.Appointment.date_start.asc())
+            .all()
+        )
+
+    def get_next_appointments(self, chat_id: str, limit: int = 3):
+        """
+        Retourne les prochains RDV
+        """
+        now = datetime.utcnow()
+
+        return (
+            self.db.query(models.Appointment)
+            .filter(
+                models.Appointment.chat_id == chat_id,
+                models.Appointment.date_start >= now
+            )
+            .order_by(models.Appointment.date_start.asc())
+            .limit(limit)
+            .all()
+        )
