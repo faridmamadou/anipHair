@@ -8,7 +8,7 @@ import os
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = logging.getLogger(__name__)
 
-WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
+from config import WEBHOOK_SECRET
 
 @router.post("/whatsapp")
 async def whatsapp_webhook(

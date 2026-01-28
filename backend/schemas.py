@@ -41,3 +41,13 @@ class WhatsAppSession(WhatsAppSessionBase):
     id: int
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+class WhatsAppMessageSend(BaseModel):
+    chat_id: str
+    message: str
+
+class WhatsAppMessage(BaseModel):
+    chat_id: str
+    message_type: str
+    content: str
+    received_at: datetime = datetime.utcnow()

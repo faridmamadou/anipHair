@@ -3,9 +3,11 @@ import os
 from sqlalchemy.orm import Session
 import models
 import schemas
-from typing import Optional
+from typing import Optional, Dict, Any
 import logging
 from dotenv import load_dotenv
+
+from .whatsapp_parser import extract_whatsapp_user_messages
 
 load_dotenv()
 
@@ -52,8 +54,8 @@ class WhatsAppSessionService:
                 logger.error(f"Unexpected error starting Wawp session: {e}")
                 return {"error": str(e)}
 
-    async def get_session_status(self, session_name: str) -> Optional[models.WhatsAppSession]:
-        return self.db.query(models.WhatsAppSession).filter(models.WhatsAppSession.session_name == session_name).first()
+    # async def get_session_status(self, session_name: str) -> Optional[models.WhatsAppSession]:
+    #     return self.db.query(models.WhatsAppSession).filter(models.WhatsAppSession.session_name == session_name).first()
 
     async def stop_session(self) -> bool:
 
@@ -110,3 +112,43 @@ class WhatsAppSessionService:
             except Exception as e:
                 logger.exception("Unexpected error sending WhatsApp message")
                 return {"error": "unexpected_error", "details": str(e)}
+
+            
+    
+    def parse_incoming_message(self, webhook_payload: dict) -> Optional[Dict[str, Any]]:
+        """
+        Returns the last user message with its type and content.
+        """
+
+        messages = extract_whatsapp_user_messages(webhook_payload)
+
+        if not messages:
+            return None
+
+        msg = messages[-1]
+        msg_type = msg.get("type")
+
+        if msg_type == "text":
+            content = msg.get("text")
+
+        elif msg_type == "audio":
+            content = {
+                "audio_id": msg.get("audio_id"),
+                "mime_type": msg.get("mime_type")
+            }
+
+        elif msg_type == "image":
+            content = {
+                "image_id": msg.get("image_id"),
+                "mime_type": msg.get("mime_type")
+            }
+
+        else:
+            content = None
+
+        return {
+            "from": msg.get("from"),
+            "type": msg_type,
+            "content": content,
+            "timestamp": msg.get("timestamp")
+        }
