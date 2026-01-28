@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import Dict
 from database import get_db
 from sqlalchemy.orm import Session
+from services.whatsapp_service import WhatsAppSessionService
+import os
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
