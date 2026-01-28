@@ -7,6 +7,7 @@ from database import get_db
 from sqlalchemy.orm import Session
 from services.whatsapp_service import WhatsAppSessionService
 import os
+from config import ADMIN_PHONE_NUMBER
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
@@ -19,8 +20,8 @@ async def receive_message(
 ):
     whatsapp_service = WhatsAppSessionService(db)
 
-    chat_id = message.chat_id
-    text = (message.content or "").lower().strip()
+    chat_id = ADMIN_PHONE_NUMBER
+    text = (message.content or "").upper().strip()
     print(message)
     # --- ROUTING PAR MOT CLÉ ---
     if "LAST" in text:
@@ -49,7 +50,8 @@ async def receive_message(
     return {
         "status": "success",
         "chat_id": chat_id,
-        "matched_text": text
+        "matched_text": text,
+        "response_text": response_text
     }
 
 @router.post("/receive-audio")
