@@ -19,7 +19,7 @@ async def receive_message(
 
     chat_id = message.chat_id
     text = (message.text or "").lower().strip()
-
+    print(message)
     # --- ROUTING PAR MOT CLÉ ---
     if "LAST" in text:
         response_text = await whatsapp_service.get_last_appointment(chat_id)
