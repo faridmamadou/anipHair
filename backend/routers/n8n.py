@@ -20,7 +20,7 @@ async def receive_message(
     whatsapp_service = WhatsAppSessionService(db)
 
     chat_id = message.chat_id
-    text = (message.text or "").lower().strip()
+    text = (message.content or "").lower().strip()
     print(message)
     # --- ROUTING PAR MOT CLÉ ---
     if "LAST" in text:
