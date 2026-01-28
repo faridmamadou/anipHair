@@ -14,7 +14,7 @@ async def receive_message(message: WhatsAppMessage):
     
     return {"status": "success", "stored_for": message.chat_id}
 
-@router.post("/messages/receive-audio")
+@router.post("/receive-audio")
 async def receive_audio_message(
     audio_msg: WhatsAppAudioMessage,
     background_tasks: BackgroundTasks,
