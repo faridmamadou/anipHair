@@ -51,3 +51,22 @@ class WhatsAppMessage(BaseModel):
     message_type: str
     content: str
     received_at: datetime = datetime.utcnow()
+
+class WhatsAppAudioMessage(BaseModel):
+    chat_id: str
+    message_type: str
+    message_id: str
+    audio_url: str  # URL directe du fichier audio
+    mime_type: Optional[str] = None
+    filename: Optional[str] = None
+    s3_bucket: Optional[str] = None
+    s3_key: Optional[str] = None
+    from_number: str = Field(..., alias="from")
+    to: Optional[str] = None
+    timestamp: int
+    fromMe: bool
+    body: Optional[str] = None
+    received_at: str
+
+    class Config:
+        populate_by_name = True

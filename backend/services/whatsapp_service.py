@@ -152,3 +152,35 @@ class WhatsAppSessionService:
             "content": content,
             "timestamp": msg.get("timestamp")
         }
+    
+    async def download_audio_from_url(self, audio_url: str, output_path: str = None) -> Optional[bytes]:
+        """
+            Télécharge l'audio depuis l'URL fournie par WAWP.
+            L'URL est au format: http://localhost:3000/api/files/{message_id}.oga
+        """
+        async with httpx.AsyncClient(timeout=30) as client:
+            try:
+                logger.info(f"Downloading audio from: {audio_url}")
+                response = await client.get(audio_url)
+                response.raise_for_status()
+                
+                audio_bytes = response.content
+                
+                # Sauvegarder si un chemin est fourni
+                if output_path:
+                    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                    with open(output_path, 'wb') as f:
+                        f.write(audio_bytes)
+                    logger.info(f"Audio saved to {output_path}")
+                
+                return audio_bytes
+                
+            except httpx.HTTPStatusError as e:
+                logger.error(
+                    f"HTTP error downloading audio {e.response.status_code}: {e.response.text}"
+                )
+                return None
+                
+            except Exception as e:
+                logger.exception("Unexpected error downloading audio")
+                return None
