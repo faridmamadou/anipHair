@@ -58,20 +58,17 @@ async def receive_message(
 async def receive_audio_message(
     audio_msg: WhatsAppAudioMessage,
     background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
 ):
-    # Ignorer les messages envoyés par le bot lui-même
-    if audio_msg.fromMe:
-        return {"status": "ignored", "reason": "message from bot"}
-    
-    
     # Définir le chemin de sauvegarde
     output_dir = "audios"
     os.makedirs(output_dir, exist_ok=True)
     output_path = f"{output_dir}/{audio_msg.message_id.replace('/', '_')}.ogg"
-    
+    service = WhatsAppSessionService(db)
     # Télécharger l'audio
-    audio_bytes = await service.download_audio_from_url(
-        audio_msg.audio_url, 
+    audio_bytes = await service.download_audio  (
+        audio_msg.chat_id,
+        audio_msg.message_id,
         output_path
     )
     

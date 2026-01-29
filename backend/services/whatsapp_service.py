@@ -153,34 +153,91 @@ class WhatsAppSessionService:
             "timestamp": msg.get("timestamp")
         }
     
-    async def download_audio_from_url(self, audio_url: str, output_path: str = None) -> Optional[bytes]:
+    # async def download_audio_from_url(self, audio_url: str, output_path: str = None) -> Optional[bytes]:
+    #     """
+    #         Télécharge l'audio depuis l'URL fournie par WAWP.
+    #         L'URL est au format: http://localhost:3000/api/files/{message_id}.oga
+    #     """
+    #     async with httpx.AsyncClient(timeout=30) as client:
+    #         try:
+    #             logger.info(f"Downloading audio from: {audio_url}")
+            
+    #             # Ajouter les paramètres d'authentification WAWP
+    #             params = {
+    #                 "instance_id": self.instance_id,
+    #                 "access_token": self.access_token
+    #             }
+            
+    #             response = await client.get(audio_url, params=params)
+    #             response.raise_for_status()
+            
+    #             audio_bytes = response.content
+            
+    #             # Sauvegarder si un chemin est fourni
+    #             if output_path:
+    #                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    #                 with open(output_path, 'wb') as f:
+    #                     f.write(audio_bytes)
+    #                 logger.info(f"Audio saved to {output_path}")
+            
+    #             return audio_bytes
+            
+    #         except httpx.HTTPStatusError as e:
+    #             logger.error(
+    #                 f"HTTP error downloading audio {e.response.status_code}: {e.response.text}"
+    #             )
+    #             return None
+            
+    #         except Exception as e:
+    #             logger.exception("Unexpected error downloading audio")
+                # return None
+    async def download_audio(self, chat_id: str, message_id: str, output_path: str = None) -> Optional[bytes]:
         """
-            Télécharge l'audio depuis l'URL fournie par WAWP.
-            L'URL est au format: http://localhost:3000/api/files/{message_id}.oga
+        Télécharge l'audio via l'API WAWP en récupérant le message complet
         """
         async with httpx.AsyncClient(timeout=30) as client:
             try:
-                logger.info(f"Downloading audio from: {audio_url}")
-                response = await client.get(audio_url)
+                logger.info(f"Downloading audio for message: {message_id} from chat: {chat_id}")
+
+                # Utiliser l'endpoint WAWP pour récupérer le message avec le média
+                params = {
+                    "instance_id": self.instance_id,
+                    "access_token": self.access_token,
+                    "downloadMedia": "true"  # Important pour télécharger le média
+                }
+
+                response = await client.post(
+                    f"{WAWP_BASE_URL}/chats/{chat_id}/messages/{message_id}",
+                    params=params,
+                    data={}
+                )
                 response.raise_for_status()
-                
-                audio_bytes = response.content
-                
-                # Sauvegarder si un chemin est fourni
-                if output_path:
-                    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-                    with open(output_path, 'wb') as f:
-                        f.write(audio_bytes)
-                    logger.info(f"Audio saved to {output_path}")
-                
-                return audio_bytes
-                
+
+                message_data = response.json()
+                logger.info(f"Message data received: {message_data}")
+
+                # Le média devrait être dans la réponse
+                # Vérifier la structure exacte de la réponse WAWP
+                if "media" in message_data:
+                    audio_bytes = message_data.get("media")  # Adapter selon la structure
+
+                    if output_path:
+                        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                        with open(output_path, 'wb') as f:
+                            f.write(audio_bytes)
+                        logger.info(f"Audio saved to {output_path}")
+
+                    return audio_bytes
+                else:
+                    logger.error("No media found in response")
+                    return None
+
             except httpx.HTTPStatusError as e:
                 logger.error(
                     f"HTTP error downloading audio {e.response.status_code}: {e.response.text}"
                 )
                 return None
-                
+
             except Exception as e:
                 logger.exception("Unexpected error downloading audio")
                 return None
@@ -204,9 +261,9 @@ class WhatsAppSessionService:
         today_appointments = self.db.query(models.Appointment)\
             .filter(
                 models.Appointment.telephone == chat_id,
-                func.date(models.Appointment.date_start) == today
+                func.date(models.Appointment.date) == today
             )\
-            .order_by(models.Appointment.date_start.asc())\
+            .order_by(models.Appointment.date.asc())\
             .all()
 
         return today_appointments if today_appointments else "Aucun RDV trouvé pour aujourd'hui"
