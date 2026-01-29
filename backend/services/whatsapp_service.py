@@ -1,19 +1,19 @@
 import httpx
 import os
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 import models
 import schemas
 from typing import Optional, Dict, Any
 import logging
+from datetime import date
 from dotenv import load_dotenv
 
 from .whatsapp_parser import extract_whatsapp_user_messages
 
-load_dotenv()
+from config import WAWP_BASE_URL, WAWP_ACCESS_TOKEN, WAWP_API_INSTANCE
 
-WAWP_BASE_URL = os.getenv("WAWP_BASE_URL")
-WAWP_API_KEY = os.getenv("WAWP_API_KEY")
-WAWP_API_INSTANCE = os.getenv("WAWP_API_INSTANCE")
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class WhatsAppSessionService:
     def __init__(self, db: Session):
         self.db = db
         self.instance_id = WAWP_API_INSTANCE
-        self.access_token = WAWP_API_KEY
+        self.access_token = WAWP_ACCESS_TOKEN
 
     async def create_session(self, session_name: str) -> models.WhatsAppSession:
         db_session = self.db.query(models.WhatsAppSession).filter(models.WhatsAppSession.session_name == session_name).first()
@@ -85,11 +85,11 @@ class WhatsAppSessionService:
             "message": text
         }
 
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=80) as client:
             try:
                 response = await client.post(
                     f"{WAWP_BASE_URL}/send",
-                    params=params
+                    params=params,
                 )
 
                 # WAWP peut parfois renvoyer un 200 sans body
@@ -189,28 +189,27 @@ class WhatsAppSessionService:
         """
         Retourne le dernier RDV du contact
         """
-        return (
-            self.db.query(models.Appointment)
-            .filter(models.Appointment.chat_id == chat_id)
-            .order_by(models.Appointment.date_start.desc())
+        last_appointment = self.db.query(models.Appointment)\
+            .filter(models.Appointment.telephone == chat_id)\
+            .order_by(models.Appointment.date.desc())\
             .first()
-        )
+        
+        return last_appointment if last_appointment else "Aucun RDV trouvé"
 
     def get_today_appointments(self, chat_id: str):
         """
         Retourne les RDV du jour
         """
         today = date.today()
-
-        return (
-            self.db.query(models.Appointment)
+        today_appointments = self.db.query(models.Appointment)\
             .filter(
-                models.Appointment.chat_id == chat_id,
+                models.Appointment.telephone == chat_id,
                 func.date(models.Appointment.date_start) == today
-            )
-            .order_by(models.Appointment.date_start.asc())
+            )\
+            .order_by(models.Appointment.date_start.asc())\
             .all()
-        )
+
+        return today_appointments if today_appointments else "Aucun RDV trouvé pour aujourd'hui"
 
     def get_next_appointments(self, chat_id: str, limit: int = 3):
         """

@@ -25,10 +25,10 @@ async def receive_message(
     print(message)
     # --- ROUTING PAR MOT CLÉ ---
     if "LAST" in text:
-        response_text = await whatsapp_service.get_last_appointment(chat_id)
+        response_text = whatsapp_service.get_last_appointment(chat_id)
 
     elif "TODAY" in text:
-        response_text = await whatsapp_service.get_today_appointments(chat_id)
+        response_text = whatsapp_service.get_today_appointments(chat_id)
 
     elif "HELP" in text or "AIDE" in text:
         response_text = (
