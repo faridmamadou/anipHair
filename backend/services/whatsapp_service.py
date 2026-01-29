@@ -87,6 +87,7 @@ class WhatsAppSessionService:
 
         async with httpx.AsyncClient(timeout=80) as client:
             try:
+                print(params)
                 response = await client.post(
                     f"{WAWP_BASE_URL}/send",
                     params=params,
@@ -242,20 +243,37 @@ class WhatsAppSessionService:
                 logger.exception("Unexpected error downloading audio")
                 return None
 
-    def get_last_appointment(self, chat_id: str):
+    def get_last_appointment(self, chat_id: str) -> str:
         """
-        Retourne le dernier RDV du contact
+        Retourne le dernier RDV du contact (formaté en texte)
         """
         last_appointment = self.db.query(models.Appointment)\
             .filter(models.Appointment.telephone == chat_id)\
             .order_by(models.Appointment.date.desc())\
             .first()
         
-        return last_appointment if last_appointment else "Aucun RDV trouvé"
+        if not last_appointment:
+            return "❌ Aucun rendez-vous trouvé"
+        
+        # Récupérer le style associé
+        style = self.db.query(models.Hairstyle)\
+            .filter(models.Hairstyle.id == last_appointment.style_id)\
+            .first()
+        
+        style_name = style.name if style else "Service inconnu"
+        
+        # Formater en texte
+        return (
+            f"📅 *Votre dernier rendez-vous*\n\n"
+            f"👤 Client: {last_appointment.customer_name}\n"
+            f"💇 Prestation: {style_name}\n"
+            f"📆 Date: {last_appointment.date.strftime('%d/%m/%Y à %H:%M')}\n"
+            f"🆔 Référence: {last_appointment.id[:8]}"
+        )
 
-    def get_today_appointments(self, chat_id: str):
+    def get_today_appointments(self, chat_id: str) -> str:
         """
-        Retourne les RDV du jour
+        Retourne les RDV du jour (formatés en texte)
         """
         today = date.today()
         today_appointments = self.db.query(models.Appointment)\
@@ -266,21 +284,59 @@ class WhatsAppSessionService:
             .order_by(models.Appointment.date.asc())\
             .all()
 
-        return today_appointments if today_appointments else "Aucun RDV trouvé pour aujourd'hui"
+        if not today_appointments:
+            return "❌ Aucun rendez-vous prévu pour aujourd'hui"
+        
+        # Formater la liste des RDV
+        rdv_list = [f"📅 *Vos rendez-vous du jour ({today.strftime('%d/%m/%Y')})*\n"]
+        
+        for idx, appt in enumerate(today_appointments, 1):
+            style = self.db.query(models.Hairstyle)\
+                .filter(models.Hairstyle.id == appt.style_id)\
+                .first()
+            
+            style_name = style.name if style else "Service inconnu"
+            
+            rdv_list.append(
+                f"\n*{idx}.* {appt.date.strftime('%H:%M')} - {style_name}\n"
+                f"   Client: {appt.customer_name}"
+            )
+        
+        return "\n".join(rdv_list)
 
-    def get_next_appointments(self, chat_id: str, limit: int = 3):
+    def get_next_appointments(self, chat_id: str, limit: int = 3) -> str:
         """
-        Retourne les prochains RDV
+        Retourne les prochains RDV (formatés en texte)
         """
         now = datetime.utcnow()
 
-        return (
+        next_appointments = (
             self.db.query(models.Appointment)
             .filter(
-                models.Appointment.chat_id == chat_id,
-                models.Appointment.date_start >= now
+                models.Appointment.telephone == chat_id,
+                models.Appointment.date >= now
             )
-            .order_by(models.Appointment.date_start.asc())
+            .order_by(models.Appointment.date.asc())
             .limit(limit)
             .all()
         )
+        
+        if not next_appointments:
+            return "❌ Aucun rendez-vous à venir"
+        
+        # Formater la liste des prochains RDV
+        rdv_list = [f"📅 *Vos prochains rendez-vous*\n"]
+        
+        for idx, appt in enumerate(next_appointments, 1):
+            style = self.db.query(models.Hairstyle)\
+                .filter(models.Hairstyle.id == appt.style_id)\
+                .first()
+            
+            style_name = style.name if style else "Service inconnu"
+            
+            rdv_list.append(
+                f"\n*{idx}.* {appt.date.strftime('%d/%m/%Y à %H:%M')} - {style_name}\n"
+                f"   Client: {appt.customer_name}"
+            )
+        
+        return "\n".join(rdv_list)

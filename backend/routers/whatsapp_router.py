@@ -4,7 +4,7 @@ from services.whatsapp_service import WhatsAppSessionService
 from database import get_db
 from schemas import AppointmentCreate, Appointment, WhatsAppMessageSend, WhatsAppMessage, WhatsAppAudioMessage
 from typing import List
-from datetime import timedelta
+from datetime import timedelta, timezone
 import re
 import models
 from config import ADMIN_PHONE_NUMBER
@@ -48,26 +48,36 @@ async def create_appointment(appointment_in: AppointmentCreate, db: Session = De
     # Calculate end time
     duration = parse_duration(style.duration)
     start_time = appointment_in.date
+    
+    # Normaliser la timezone si nécessaire
+    if start_time.tzinfo is None:
+        # Si start_time est naive, on le rend aware (UTC par exemple)
+        from datetime import timezone
+        start_time = start_time.replace(tzinfo=timezone.utc)
+    
     end_time = start_time + duration
     
-    # Check for overlaps
-    # Overlap condition: (existing_start < requested_end) AND (existing_end > requested_start)
-    # Note: We need to know the duration of existing appointments too.
-    # To simplify, we'll join with Hairstyle or store end_time in DB.
-    # Let's use a join to get existing durations.
-    
+    # Check for overlaps - version simplifiée
     existing_appointments = db.query(models.Appointment, models.Hairstyle).\
         join(models.Hairstyle, models.Appointment.style_id == models.Hairstyle.id).\
         all()
     
     for appt, appt_style in existing_appointments:
-        appt_duration = parse_duration(appt_style.duration)
-        appt_end = appt.date + appt_duration
+        appt_start = appt.date
         
-        if (appt.date < end_time) and (appt_end > start_time):
+        # Normaliser la timezone de l'appointment existant
+        if appt_start.tzinfo is None:
+            from datetime import timezone
+            appt_start = appt_start.replace(tzinfo=timezone.utc)
+        
+        appt_duration = parse_duration(appt_style.duration)
+        appt_end = appt_start + appt_duration
+        
+        # Vérifier le chevauchement
+        if (appt_start < end_time) and (appt_end > start_time):
             raise HTTPException(
                 status_code=400, 
-                detail=f"Time slot already occupied by '{appt_style.name}' until {appt_end.strftime('%H:%M')}"
+                detail=f"Créneau déjà occupé par '{appt_style.name}' jusqu'à {appt_end.strftime('%H:%M')}"
             )
     
     # Create appointment
@@ -76,7 +86,7 @@ async def create_appointment(appointment_in: AppointmentCreate, db: Session = De
     db.commit()
     db.refresh(db_appointment)
     
-    # Notify Admin if phone number is configured
+    # Notify Admin (optionnel - en arrière-plan)
     if ADMIN_PHONE_NUMBER:
         try:
             whatsapp_service = WhatsAppSessionService(db)
@@ -88,14 +98,14 @@ async def create_appointment(appointment_in: AppointmentCreate, db: Session = De
                 f"📞 Tel: {db_appointment.telephone}\n"
                 f"🆔 ID: {db_appointment.id[:8]}"
             )
-            # Use background tasks if needed for performance, keeping it simple for now
+            # Envoi asynchrone sans bloquer
             import asyncio
             asyncio.create_task(whatsapp_service.send_message(
                 chat_id=ADMIN_PHONE_NUMBER,
                 text=msg
             ))
         except Exception as e:
-            print(f"Failed to send admin notification: {e}")
+            print(f"Notification WhatsApp échouée: {e}")
 
     return db_appointment
 
