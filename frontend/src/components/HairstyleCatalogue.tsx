@@ -52,7 +52,15 @@ const HAIRSTYLES = [
     }
 ];
 
-export function HairstyleCatalogue() {
+export function HairstyleCatalogue({ onSelectStyle }: { onSelectStyle: (id: number) => void }) {
+    const handleSelect = (id: number) => {
+        onSelectStyle(id);
+        const bookingSection = document.getElementById('booking');
+        if (bookingSection) {
+            bookingSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
     return (
         <section id="catalogue" className="py-24 bg-white relative">
             <div className="container mx-auto px-6">
@@ -85,7 +93,10 @@ export function HairstyleCatalogue() {
                                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8">
-                                    <button className="w-full bg-brand-gold text-brand-charcoal font-bold py-3 rounded-xl flex items-center justify-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform">
+                                    <button
+                                        onClick={() => handleSelect(style.id)}
+                                        className="w-full bg-brand-gold text-brand-charcoal font-bold py-3 rounded-xl flex items-center justify-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform"
+                                    >
                                         Réserver ce style <ChevronRight className="w-5 h-5" />
                                     </button>
                                 </div>

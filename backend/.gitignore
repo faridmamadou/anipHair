@@ -9,3 +9,9 @@ wheels/
 # Virtual environments
 .venv
 .env
+node/.env
+node/auth_info_baileys
+node/qr.png
+node/node_modules/
+*/node_modules/
+node/audio_data
