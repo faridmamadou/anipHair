@@ -46,32 +46,8 @@ function extractMessageContent(msg) {
  * @param {boolean} isGroup - Whether it's a group message
  * @returns {boolean} True if mentioned
  */
-async function isBotMentioned(sock, msg, isGroup) {
-    if (!isGroup) return false;
-
-    try {
-        // Get bot ID
-        const botId = sock.user.id;
-        const botNumber = botId.split(':')[0];
-
-        // Check mentions in message
-        const message = unwrapMessage(msg.message);
-        const mentions = message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-
-        // Check if bot is in mentions
-        const isMentioned = mentions.some(mention =>
-            mention.includes(botNumber) || mention.includes(botId)
-        );
-
-        return isMentioned;
-    } catch (error) {
-        console.error('❌ Error checking mention:', error);
-        return false;
-    }
-}
 
 module.exports = {
     unwrapMessage,
     extractMessageContent,
-    isBotMentioned
 };

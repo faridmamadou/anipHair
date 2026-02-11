@@ -9,8 +9,7 @@ import models
 import schemas
 from database import SessionLocal, engine, get_db
 from initial_data import HAIRSTYLES_SEED
-from routers import webhooks, n8n, whatsapp_router
-from services.whatsapp_service import WhatsAppSessionService
+from routers import whatsapp_router, messages_router
 import config
 
 
@@ -34,15 +33,14 @@ app = FastAPI(title="Anip Hair API", lifespan=lifespan)
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Frontend URL
+    allow_origins=["*"],  # Simplified for dev, adjust as needed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(webhooks.router)
-app.include_router(n8n.router)
 app.include_router(whatsapp_router.router)
+app.include_router(messages_router.router)
 
 
 @app.get("/")

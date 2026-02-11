@@ -5,8 +5,8 @@ const path = require('path');
 
 const { handleConnection } = require('./handlers/connectionHandler');
 const { handleAudioMessage } = require('./handlers/audioHandler');
-const { unwrapMessage, extractMessageContent, isBotMentioned } = require('./handlers/messageHandler');
-const { sendToFastAPI } = require('./services/apiService');
+const { unwrapMessage, extractMessageContent } = require('./handlers/messageHandler');
+const apiService = require('./services/apiService');
 const { parseContactList, extractPhoneFromJid } = require('./utils/phoneUtils');
 const { sleep, markAsRead, sendTyping } = require('./utils/botUtils');
 
@@ -14,20 +14,9 @@ class WhatsAppBot {
     constructor() {
         this.sock = null;
         this.logger = pino({ level: 'silent' });
-        this.audioDir = path.join(process.cwd(), 'audio_data');
 
         // Configuration of allowed/excluded contacts
         this.setupContactFilters();
-
-        // Create the audio_data folder if it doesn't exist
-        this.setupAudioDirectory();
-    }
-
-    setupAudioDirectory() {
-        if (!fs.existsSync(this.audioDir)) {
-            fs.mkdirSync(this.audioDir, { recursive: true });
-            console.log(' Dossier audio_data créé');
-        }
     }
 
     setupContactFilters() {
@@ -84,6 +73,8 @@ class WhatsAppBot {
         this.sock.ev.on('messages.upsert', this.handleMessages.bind(this));
     }
 
+
+
     async handleMessages(m) {
         const msg = m.messages[0];
         if (!msg.message) return;
@@ -95,7 +86,6 @@ class WhatsAppBot {
 
         // Ignorer les statuts WhatsApp et broadcasts
         if (from === 'status@broadcast' || from.includes('broadcast')) {
-            console.log('🚫 Status/Broadcast ignoré');
             return;
         }
 
@@ -108,26 +98,27 @@ class WhatsAppBot {
         await markAsRead(this.sock, msg.key);
 
         const message = unwrapMessage(msg.message);
-        let messageContent = '';
+        let messageContent = null;
         let audioInfo = null;
+        let type = '';
 
         if (message?.audioMessage) {
             console.log(`🎵 Audio message received from ${senderName} (${from})`);
-            audioInfo = await handleAudioMessage(this.sock, msg, from, senderName, this.audioDir, this.logger);
+            audioInfo = await handleAudioMessage(this.sock, msg, from, senderName, this.logger);
             if (audioInfo) {
-                messageContent = null;
-                console.log(`🎵 Audio saved: ${audioInfo.filename}`);
+                type = 'audio';
+                console.log(`🎵 Audio buffer saved`);
             } else {
                 messageContent = '[Audio message - download failed]';
             }
         } else {
             messageContent = extractMessageContent(msg);
+            type = 'text';
         }
 
         console.log(`📨 Message from ${senderName} (${from}): ${messageContent || '[Audio]'}`);
 
-        const isMentioned = await isBotMentioned(this.sock, msg, isGroup);
-        const shouldRespond = !isGroup || isMentioned || (messageContent && messageContent.startsWith('/')) || audioInfo;
+        const shouldRespond = !isGroup || (messageContent && messageContent.startsWith('/')) || audioInfo;
 
         if (!shouldRespond) {
             console.log(`🔇 Message ignored (group without mention)`);
@@ -140,19 +131,24 @@ class WhatsAppBot {
             await sendTyping(this.sock, from);
 
             // Forward to FastAPI
-            const type = audioInfo ? 'audio' : 'text';
-            const content = audioInfo ? audioInfo.filename : messageContent;
+            const content = audioInfo ? audioInfo : messageContent;
 
             if (content) {
-                await sendToFastAPI(content, type, from);
+                const response = await apiService.sendMessage({
+                    type,
+                    content,
+                    senderId: from,
+                    mimetype: audioInfo?.mimetype
+                });
+
                 console.log(`🚀 Message forwarded to FastAPI (${type})`);
-            }
 
-
-
-            // Optional: Simple ack for text messages
-            if (messageContent && !isGroup) {
-                // await this.sendMessage(from, "Message reçu !");
+                // Handle direct reply from FastAPI
+                if (response && response.received && response.reply) {
+                    await this.sendMessage(from, response.reply);
+                } else if (response && response.reply) {
+                    await this.sendMessage(from, response.reply);
+                }
             }
 
         } catch (error) {
@@ -185,27 +181,6 @@ class WhatsAppBot {
         } catch (error) {
             console.error('❌ Error sending message with mention:', error);
             await this.sendMessage(to, `${mentionName}: ${message}`);
-        }
-    }
-
-    listAudioFiles() {
-        try {
-            const files = fs.readdirSync(this.audioDir);
-            const audioFiles = files.filter(file =>
-                file.endsWith('.ogg') || file.endsWith('.mp3') || file.endsWith('.m4a') || file.endsWith('.wav')
-            );
-
-            console.log(`📁 ${audioFiles.length} audio files found:`);
-            audioFiles.forEach(file => {
-                const filepath = path.join(this.audioDir, file);
-                const stats = fs.statSync(filepath);
-                console.log(`  - ${file} (${Math.round(stats.size / 1024)}KB, ${stats.mtime.toLocaleString()})`);
-            });
-
-            return audioFiles;
-        } catch (error) {
-            console.error('❌ Error listing audio files:', error);
-            return [];
         }
     }
 }

@@ -31,17 +31,6 @@ class Appointment(AppointmentBase):
     status: str
     model_config = ConfigDict(from_attributes=True)
 
-# WhatsApp Session Schemas
-class WhatsAppSessionBase(BaseModel):
-    session_name: str
-    status: str
-    qr_code: Optional[str] = None
-
-class WhatsAppSession(WhatsAppSessionBase):
-    id: int
-    updated_at: datetime
-    model_config = ConfigDict(from_attributes=True)
-
 class WhatsAppMessageSend(BaseModel):
     chat_id: str
     message: str
@@ -50,16 +39,9 @@ class WhatsAppMessage(BaseModel):
     chat_id: str
     message_type: str
     content: str
-    received_at: datetime = datetime.utcnow()
 
-class WhatsAppAudioMessage(BaseModel):
-    chat_id: str
-    message_type: str
-    message_id: str
-    audio_url: str  # URL directe du fichier audio
-    mime_type: Optional[str] = None
-    timestamp: int
-    received_at: str
+class WhatsAppMessageReceive(BaseModel):
+    type: str
+    message: Optional[str] = None
+    sender_id: str
 
-    class Config:
-        populate_by_name = True

@@ -8,7 +8,6 @@ bot.startBot().catch(console.error);
 // Graceful shutdown handling
 process.on('SIGINT', () => {
     console.log('\n🛑 Stopping bot...');
-    bot.listAudioFiles();
     process.exit(0);
 });
 
