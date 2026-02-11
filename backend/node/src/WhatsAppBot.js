@@ -6,6 +6,7 @@ const path = require('path');
 const { handleConnection } = require('./handlers/connectionHandler');
 const { handleAudioMessage } = require('./handlers/audioHandler');
 const { unwrapMessage, extractMessageContent, isBotMentioned } = require('./handlers/messageHandler');
+const { sendToFastAPI } = require('./services/apiService');
 const { parseContactList, extractPhoneFromJid } = require('./utils/phoneUtils');
 const { sleep, markAsRead, sendTyping } = require('./utils/botUtils');
 
@@ -138,8 +139,16 @@ class WhatsAppBot {
         try {
             await sendTyping(this.sock, from);
 
-            // TODO: Add custom logic here if needed
-            console.log(`📝 Message received and authorized. No AI processing (as requested).`);
+            // Forward to FastAPI
+            const type = audioInfo ? 'audio' : 'text';
+            const content = audioInfo ? audioInfo.filename : messageContent;
+
+            if (content) {
+                await sendToFastAPI(content, type, from);
+                console.log(`🚀 Message forwarded to FastAPI (${type})`);
+            }
+
+
 
             // Optional: Simple ack for text messages
             if (messageContent && !isGroup) {
