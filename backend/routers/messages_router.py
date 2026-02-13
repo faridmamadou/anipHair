@@ -40,17 +40,17 @@ async def receive_message(
 
     # Handle Multi-part/Form-Data (audio message)
     if type == "audio" and file:
-        file_path = f"audios/received_audio_{sender_id}_{os.urandom(4).hex()}.ogg"
-        os.makedirs("audios", exist_ok=True)
-        with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
+        content = await file.read()
         
-        print(f"🎵 Audio reçu de {sender_id}, sauvegardé sous: {file_path}")
+        print(f"🎵 Audio reçu de {sender_id} (taille: {len(content)} bytes)")
+        
+        # Process audio with service
+        reply = await service.process_audio_message(content, file.filename or "audio.ogg", sender_id)
+        
         return {
             "status": "success", 
-            "received": {"type": "audio", "file": file_path, "sender_id": sender_id},
-            "reply": "J'ai bien reçu votre message audio, je l'analyse..."
+            "received": {"type": "audio", "sender_id": sender_id},
+            "reply": reply
         }
 
     raise HTTPException(status_code=400, detail="Invalid request format or type")

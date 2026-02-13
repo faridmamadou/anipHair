@@ -1,0 +1,79 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend_data:/app
+      - backend_audios:/app/audios
+    environment:
+      - DATABASE_PATH=/app/aniphair.db
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - ./backend/.env
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 300s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: always
+    networks:
+      - app-network
+
+  whatsapp-bot:
+    build:
+      context: ./backend/node
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - API_BASE_URL=http://backend:8000
+      - RESPOND_TO_SELF=true
+      - NODE_ENV=production
+    volumes:
+      # Code source (développement)
+      - ./backend/node:/app
+      # Session WhatsApp (persistante)
+      - whatsapp_session:/app/auth_info
+      # Exclure node_modules du bind mount
+      - /app/node_modules
+    restart: always
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      # Code source (développement)
+      - ./frontend:/app
+      # Exclure node_modules du bind mount
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: always
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  backend_data:
+    driver: local
+  backend_audios:
+    driver: local
+  whatsapp_session:
+    driver: local

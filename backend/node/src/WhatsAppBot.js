@@ -79,6 +79,14 @@ class WhatsAppBot {
         const msg = m.messages[0];
         if (!msg.message) return;
 
+        const fromMe = msg.key.fromMe;
+        const respondToSelf = process.env.RESPOND_TO_SELF === 'false';
+
+        // Ignore messages from the bot itself unless RESPOND_TO_SELF is true
+        if (fromMe && !respondToSelf) {
+            return;
+        }
+
         const from = msg.key.remoteJid;
         const senderName = msg.pushName || 'User';
         const isGroup = from.endsWith('@g.us');

@@ -43,7 +43,7 @@ app.include_router(whatsapp_router.router)
 app.include_router(messages_router.router)
 
 
-@app.get("/")
+@app.get("/health")
 async def health_check():
     return {"status": "ok", "message": "Anip Hair Backend is running with SQLite persistence"}
 

@@ -1,0 +1,8 @@
+__pycache__
+.venv
+.env
+aniphair.db
+audios
+node/node_modules
+node/auth_info_baileys
+node/audio_data
